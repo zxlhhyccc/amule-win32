@@ -2,32 +2,26 @@
 
 set -e
 
-mkdir -p amule-dlp
 
 if [ "$USE_LLVM" == "yes" ]; then
     export RC=$PWD/scripts/llvm-windres.sh
-    denoise_level=0
-else
-    cp curl-ca-bundle.crt amule-dlp
-    denoise_level=4
 fi
 
 # amule-dlp
-cd src/amule-dlp-master
+cd src/amule-dlp
 
 patch -p1 <../../patches/amule-fix-curl_with_tls.patch
 patch -p1 <../../patches/amule-fix-geoip_url.patch
 patch -p0 <../../patches/amule-fix-upnp_cross_compile.patch
-patch -p0 <../../patches/amule-fix-wchar_t.patch
 patch -p0 <../../patches/amule-fix-exception.patch
 patch -p1 <../../patches/amule-fix-unzip.patch
 patch -p1 <../../patches/amule-fix-dlp.patch
 patch -p1 <../../patches/amule-fix-boost_llvm.patch
 
 ./autogen.sh
-./configure CPPFLAGS="-I$BUILDDIR/zlib/include -I$BUILDDIR/libpng/include -DHAVE_LIBCURL" \
-    LDFLAGS="-L$BUILDDIR/zlib/lib -L$BUILDDIR/libpng/lib" \
-    CXXFLAGS="-DCURL_STATICLIB" CFLAGS="-DCURL_STATICLIB" \
+./configure CPPFLAGS="$CPPFLAGS -D_UNICODE=1 -DUNICODE=1" \
+    LDFLAGS="$LDFLAGS -lintl -pthread" \
+    CXXFLAGS="$CXXFLAGS -DCURL_STATICLIB -pthread" CFLAGS="$CFLAGS -DCURL_STATICLIB -pthread" \
     --prefix=$BUILDDIR/amule-dlp --host=$TARGET \
     --enable-amule-daemon --enable-webserver --enable-amulecmd --enable-amule-gui \
     --enable-cas --enable-wxcas --enable-alc --enable-alcc --enable-fileview \
@@ -40,24 +34,18 @@ patch -p1 <../../patches/amule-fix-boost_llvm.patch
     --with-geoip-static -with-geoip-lib=$BUILDDIR/geoip/lib --with-geoip-headers=$BUILDDIR/geoip/include \
     --with-libpng-prefix=$BUILDDIR/libpng --with-libpng-config=$BUILDDIR/libpng/bin/libpng-config \
     --enable-static-boost --with-boost=$BUILDDIR/boost \
-    --with-libupnp-prefix=$BUILDDIR/libupnp --with-denoise-level=$denoise_level --enable-ccache
+    --with-libupnp-prefix=$BUILDDIR/libupnp --with-denoise-level=0 --enable-ccache
 
-make BOOST_SYSTEM_LIBS="$BUILDDIR/boost/lib/libboost_system.a -lws2_32" BOOST_SYSTEM_LDFLAGS="-L$BUILDDIR/boost/lib" -j$(nproc)
+make GDLIB_LIBS="-lgd -liconv -lpng16 -lz" BOOST_SYSTEM_LIBS="$BUILDDIR/boost/lib/libboost_system.a -lwsock32 -lws2_32" BOOST_SYSTEM_LDFLAGS="-L$BUILDDIR/boost/lib" -j$(nproc)
 make install
 make clean
 
-patch -p1 -R <../../patches/amule-fix-boost_llvm.patch
-patch -p1 -R <../../patches/amule-fix-dlp.patch
-patch -p1 -R <../../patches/amule-fix-unzip.patch
-patch -p0 -R <../../patches/amule-fix-exception.patch
-patch -p0 -R <../../patches/amule-fix-wchar_t.patch
-patch -p0 -R <../../patches/amule-fix-upnp_cross_compile.patch
-patch -p1 -R <../../patches/amule-fix-geoip_url.patch
-patch -p1 -R <../../patches/amule-fix-curl_with_tls.patch
+git restore .
+git clean -f
 
 # libantileech
 
-cd ../amule-dlp.antiLeech-master
+cd ../amule-dlp.antiLeech
 patch -p1 <../../patches/amule-fix-libantiLeech.patch
 PATH=$BUILDDIR/wxwidgets/bin:$PATH
 $TARGET-g++ -g0 -Os -s -static -fPIC -shared antiLeech.cpp antiLeech_wx.cpp Interface.cpp -o antileech.dll $(wx-config --cppflags) $(wx-config --libs)
@@ -74,4 +62,3 @@ cp -r $BUILDDIR/amule-dlp/share/amule-dlp/* amule-dlp
 mkdir -p amule-dlp/docs
 cp $BUILDDIR/amule-dlp/share/doc/amule-dlp/* amule-dlp/docs
 7z a -mx9 amule-dlp-$(printf '%(%Y-%m-%d)T\n' -1)-$ARCH.7z amule-dlp
-rm -rf amule-dlp

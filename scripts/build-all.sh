@@ -50,20 +50,38 @@ export BUILDDIR
 export USE_LLVM
 export ARCH
 
+export PKG_CONFIG_LIBDIR="$BUILDDIR/libpng/lib/pkgconfig:$BUILDDIR/zlib/lib/pkgconfig:$BUILDDIR/libgd/lib/pkgconfig:$BUILDDIR/libiconv/lib/pkgconfig"
+export PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR
+export PKG_CONFIG_SYSROOT_DIR=$BUILDDIR
+export CXXFLAGS="-g0 -O2"
+export CFLAGS="-g0 -O2"
+export CPPFLAGS="-I$BUILDDIR/libiconv/include -I$BUILDDIR/zlib/include -I$BUILDDIR/libpng/include -I$BUILDDIR/gettext/include  -Wno-error=register -Wno-error=incompatible-pointer-types"
+export LDFLAGS="-L$BUILDDIR/libiconv/lib -L$BUILDDIR/zlib/lib -L$BUILDDIR/libpng/lib -L$BUILDDIR/gettext/lib -s --static"
+
+mkdir -p amule
+mkdir -p amule-dlp
+
 ./scripts/zlib.sh
 ./scripts/libpng.sh
 ./scripts/libiconv.sh
+./scripts/gettext.sh
 ./scripts/geoip.sh
 ./scripts/libupnp.sh
 
-if [ "$USE_LLVM" == "no" ]; then
-    ./scripts/gettext.sh
+if [ "$ARCH" == "win32" ]; then
     ./scripts/mbedtls.sh
+    wget https://curl.se/ca/cacert.pem -O curl-ca-bundle.crt
+    cp  curl-ca-bundle.crt amule
+    cp  curl-ca-bundle.crt amule-dlp
 fi
 
 ./scripts/curl.sh
 ./scripts/cryptopp-autotools.sh
 ./scripts/wxwidgets.sh
 ./scripts/boost.sh
-./scripts/amule-2.3.3.sh
+./scripts/libgd.sh
+./scripts/amule.sh
 ./scripts/amule-dlp.sh
+
+rm -rf amule-dlp
+rm -rf amule
